@@ -1,57 +1,78 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import QRCode from "react-qr-code";
+import { supabase, type Seller } from "@/lib/supabase";
 
 type Item = { name: string; qty: number; price: number };
-
 const emptyItem: Item = { name: "", qty: 1, price: 0 };
 
-function nextInvoiceNumber(): string {
-  const year = new Date().getFullYear();
-  const key = `gw_invoice_counter_${year}`;
-  const last = parseInt(localStorage.getItem(key) || "0", 10);
-  const seq = last + 1;
-  localStorage.setItem(key, String(seq));
-  return `INV-${year}-${String(seq).padStart(4, "0")}`;
-}
+const inr = (n: number) =>
+  n.toLocaleString("en-IN", { style: "currency", currency: "INR" });
 
 export default function InvoicePage() {
-  // Seller details (saved on this device)
-  const [businessName, setBusinessName] = useState("");
-  const [sellerPhone, setSellerPhone] = useState("");
-  // Customer
+  const router = useRouter();
+  const [seller, setSeller] = useState<Seller | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  // Items
+  const [customerAddress, setCustomerAddress] = useState("");
   const [items, setItems] = useState<Item[]>([{ ...emptyItem }]);
-  // Generated invoice
+
   const [invoiceNo, setInvoiceNo] = useState<string | null>(null);
-  const [invoiceDate, setInvoiceDate] = useState<string>("");
+  const [invoiceDate, setInvoiceDate] = useState("");
+  const [isPaid, setIsPaid] = useState(false);
 
   useEffect(() => {
-    setBusinessName(localStorage.getItem("gw_business_name") || "");
-    setSellerPhone(localStorage.getItem("gw_seller_phone") || "");
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("gw_business_name", businessName);
-  }, [businessName]);
-  useEffect(() => {
-    localStorage.setItem("gw_seller_phone", sellerPhone);
-  }, [sellerPhone]);
+    (async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session) {
+        router.push("/login");
+        return;
+      }
+      const { data } = await supabase.from("sellers").select("*").maybeSingle();
+      if (!data) {
+        router.push("/login");
+        return;
+      }
+      setSeller(data as Seller);
+      setLoading(false);
+    })();
+  }, [router]);
 
   const total = items.reduce((s, it) => s + it.qty * it.price, 0);
   const valid =
-    businessName.trim() &&
     customerName.trim() &&
+    customerPhone.trim() &&
     items.some((it) => it.name.trim() && it.qty > 0);
 
   const setItem = (i: number, patch: Partial<Item>) =>
     setItems((prev) => prev.map((it, j) => (j === i ? { ...it, ...patch } : it)));
 
-  const generate = () => {
+  const generate = async () => {
     if (!valid) return;
-    setInvoiceNo(nextInvoiceNumber());
+    setBusy(true);
+    setError("");
+    const { data, error: err } = await supabase.rpc("create_invoice", {
+      p_customer_name: customerName.trim(),
+      p_customer_phone: customerPhone.trim(),
+      p_customer_address: customerAddress.trim(),
+      p_customer_email: "",
+      p_items: items
+        .filter((it) => it.name.trim() && it.qty > 0)
+        .map((it) => ({ name: it.name.trim(), qty: it.qty, price: it.price })),
+    });
+    setBusy(false);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    setInvoiceNo((data as { invoice_number: string }).invoice_number);
+    setIsPaid(false);
     setInvoiceDate(
       new Date().toLocaleDateString("en-IN", {
         day: "2-digit",
@@ -61,26 +82,41 @@ export default function InvoicePage() {
     );
   };
 
+  const markPaid = async () => {
+    if (!invoiceNo) return;
+    setBusy(true);
+    const { error: err } = await supabase.rpc("mark_invoice_paid", {
+      p_invoice_number: invoiceNo,
+    });
+    setBusy(false);
+    if (!err) setIsPaid(true);
+  };
+
   const reset = () => {
     setInvoiceNo(null);
+    setIsPaid(false);
     setCustomerName("");
     setCustomerPhone("");
+    setCustomerAddress("");
     setItems([{ ...emptyItem }]);
   };
 
-  const inr = (n: number) =>
-    n.toLocaleString("en-IN", { style: "currency", currency: "INR" });
+  const upiLink = () =>
+    seller?.upi_id
+      ? `upi://pay?pa=${encodeURIComponent(seller.upi_id)}&pn=${encodeURIComponent(seller.business_name)}&am=${total.toFixed(2)}&cu=INR&tn=${encodeURIComponent(invoiceNo || "")}`
+      : "";
 
   const waText = () => {
     const lines = [
-      `*${businessName}*`,
-      `Invoice ${invoiceNo} · ${invoiceDate}`,
+      `*${seller?.business_name}*`,
+      `Invoice ${invoiceNo} · ${invoiceDate}${isPaid ? " · PAID ✅" : ""}`,
       ``,
       ...items
         .filter((it) => it.name.trim())
         .map((it) => `• ${it.name} ×${it.qty} — ${inr(it.qty * it.price)}`),
       ``,
       `*Total: ${inr(total)}*`,
+      ...(seller?.upi_id && !isPaid ? [``, `Pay via UPI: ${seller.upi_id}`] : []),
       ``,
       `Thank you, ${customerName}! 🙏`,
     ];
@@ -93,17 +129,28 @@ export default function InvoicePage() {
     return `https://wa.me/${phone}?text=${waText()}`;
   };
 
-  // ------- Invoice view (after generate) -------
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-white text-zinc-400">
+        Loading...
+      </main>
+    );
+  }
+
+  // ------- Invoice view -------
   if (invoiceNo) {
     return (
       <main className="mx-auto min-h-screen max-w-lg bg-white px-5 py-8 text-zinc-900">
-        <div id="invoice-sheet" className="rounded-2xl border border-zinc-200 p-6">
+        <div className="relative rounded-2xl border border-zinc-200 p-6">
+          {isPaid && (
+            <div className="absolute right-4 top-4 rotate-12 rounded border-4 border-emerald-600 px-3 py-1 text-xl font-black tracking-widest text-emerald-600">
+              PAID
+            </div>
+          )}
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-xl font-bold">{businessName}</h1>
-              {sellerPhone && (
-                <p className="text-sm text-zinc-500">☎ {sellerPhone}</p>
-              )}
+              <h1 className="text-xl font-bold">{seller?.business_name}</h1>
+              <p className="text-sm text-zinc-500">☎ {seller?.phone}</p>
             </div>
             <div className="text-right">
               <p className="font-mono text-sm font-semibold">{invoiceNo}</p>
@@ -114,8 +161,9 @@ export default function InvoicePage() {
           <div className="mt-6 rounded-lg bg-zinc-50 p-3 text-sm">
             <span className="text-zinc-500">Billed to: </span>
             <span className="font-medium">{customerName}</span>
-            {customerPhone && (
-              <span className="text-zinc-500"> · {customerPhone}</span>
+            <span className="text-zinc-500"> · {customerPhone}</span>
+            {customerAddress && (
+              <p className="mt-1 text-zinc-500">{customerAddress}</p>
             )}
           </div>
 
@@ -142,7 +190,18 @@ export default function InvoicePage() {
             </tbody>
           </table>
 
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex items-end justify-between">
+            {seller?.upi_id && !isPaid ? (
+              <div className="text-center">
+                <div className="rounded-lg border border-zinc-200 bg-white p-2">
+                  <QRCode value={upiLink()} size={110} />
+                </div>
+                <p className="mt-1 text-xs text-zinc-500">Scan to pay via UPI</p>
+                <p className="text-xs text-zinc-400">{seller.upi_id}</p>
+              </div>
+            ) : (
+              <div />
+            )}
             <div className="text-right">
               <p className="text-sm text-zinc-500">Total</p>
               <p className="text-2xl font-bold">{inr(total)}</p>
@@ -154,17 +213,23 @@ export default function InvoicePage() {
           </p>
         </div>
 
-        {/* Actions — hidden when printing */}
         <div className="mt-6 space-y-3 print:hidden">
-          {customerPhone && (
-            <a
-              href={waLink()}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full rounded-full bg-emerald-600 py-3 text-center font-semibold text-white hover:bg-emerald-700"
+          <a
+            href={waLink()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full rounded-full bg-emerald-600 py-3 text-center font-semibold text-white hover:bg-emerald-700"
+          >
+            Send on WhatsApp
+          </a>
+          {!isPaid && (
+            <button
+              onClick={markPaid}
+              disabled={busy}
+              className="block w-full rounded-full border-2 border-emerald-600 py-3 text-center font-semibold text-emerald-700 hover:bg-emerald-50"
             >
-              Send on WhatsApp
-            </a>
+              {busy ? "..." : "Mark as PAID"}
+            </button>
           )}
           <button
             onClick={() => window.print()}
@@ -172,12 +237,14 @@ export default function InvoicePage() {
           >
             Download PDF / Print
           </button>
-          <button
-            onClick={reset}
-            className="block w-full py-2 text-center text-sm text-zinc-500 hover:text-zinc-700"
-          >
-            + New invoice
-          </button>
+          <div className="flex justify-between text-sm text-zinc-500">
+            <button onClick={reset} className="py-2 hover:text-zinc-700">
+              + New invoice
+            </button>
+            <a href="/dashboard" className="py-2 hover:text-zinc-700">
+              Dashboard →
+            </a>
+          </div>
         </div>
       </main>
     );
@@ -186,29 +253,15 @@ export default function InvoicePage() {
   // ------- Form view -------
   return (
     <main className="mx-auto min-h-screen max-w-lg bg-white px-5 py-8 text-zinc-900">
-      <h1 className="text-2xl font-bold">
-        New <span className="text-emerald-600">Invoice</span>
-      </h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Fill the details, get a numbered invoice, send it on WhatsApp.
-      </p>
-
-      <section className="mt-6">
-        <h2 className="text-sm font-semibold text-zinc-500">YOUR BUSINESS</h2>
-        <input
-          value={businessName}
-          onChange={(e) => setBusinessName(e.target.value)}
-          placeholder="Business name (e.g. Sri Lakshmi Jewels)"
-          className="mt-2 w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
-        />
-        <input
-          value={sellerPhone}
-          onChange={(e) => setSellerPhone(e.target.value)}
-          placeholder="Your phone (shown on invoice)"
-          inputMode="tel"
-          className="mt-2 w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
-        />
-      </section>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">
+          New <span className="text-emerald-600">Invoice</span>
+        </h1>
+        <a href="/dashboard" className="text-sm text-zinc-500 hover:text-zinc-700">
+          Dashboard →
+        </a>
+      </div>
+      <p className="mt-1 text-sm text-zinc-500">{seller?.business_name}</p>
 
       <section className="mt-6">
         <h2 className="text-sm font-semibold text-zinc-500">CUSTOMER</h2>
@@ -223,6 +276,12 @@ export default function InvoicePage() {
           onChange={(e) => setCustomerPhone(e.target.value)}
           placeholder="Customer WhatsApp number"
           inputMode="tel"
+          className="mt-2 w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
+        />
+        <input
+          value={customerAddress}
+          onChange={(e) => setCustomerAddress(e.target.value)}
+          placeholder="Delivery address (optional)"
           className="mt-2 w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
         />
       </section>
@@ -281,16 +340,17 @@ export default function InvoicePage() {
         <span className="text-xl font-bold">{inr(total)}</span>
       </div>
 
+      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
       <button
         onClick={generate}
-        disabled={!valid}
+        disabled={!valid || busy}
         className="mt-6 w-full rounded-full bg-emerald-600 py-3 font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
       >
-        Generate invoice
+        {busy ? "Generating..." : "Generate invoice"}
       </button>
       <p className="mt-3 text-center text-xs text-zinc-400">
-        Invoice numbers continue automatically on this device (INV-
-        {new Date().getFullYear()}-XXXX)
+        Saved to your account · numbered automatically
       </p>
     </main>
   );

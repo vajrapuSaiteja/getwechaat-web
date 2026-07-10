@@ -3,6 +3,19 @@
 All notable changes to the showcase website, in plain language.
 Versions follow v MAJOR.MINOR.PATCH — we stay on v0.x until the first real seller is live.
 
+## v0.3.0 — 2026-07-10 · Vendor accounts + real database
+
+- Vendor sign-up and login at /login (email + password, free)
+- One-time business profile: name, owner, WhatsApp number, UPI ID
+- Invoices now saved permanently to the cloud database (Supabase, Mumbai region) —
+  numbering is per vendor and continues across devices (Sindhu and Sreya each
+  get their own INV-2026-0001)
+- **UPI QR code on every invoice** — customer scans and pays the vendor directly
+- **PAID stamp**: mark an invoice paid and it shows a stamp, acts as the receipt
+- **Vendor dashboard** at /dashboard: today's invoice count and sales,
+  total collected, unpaid count, full invoice list with one-tap Mark paid
+- Each vendor sees only their own data (row-level security in the database)
+
 ## v0.2.0 — 2026-07-09 · Live site + Invoice maker
 
 - Website hosted on Vercel: https://getwechaat-web.vercel.app (auto-deploys from `main`)
