@@ -65,6 +65,9 @@ export default function Home() {
           <nav className="hidden gap-8 text-sm text-zinc-600 sm:flex">
             <a href="#features" className="hover:text-zinc-900">Features</a>
             <a href="#how-it-works" className="hover:text-zinc-900">How it works</a>
+            <a href="/invoice" className="font-medium text-emerald-600 hover:text-emerald-700">
+              Invoice maker
+            </a>
           </nav>
           <a
             href={WA_LINK}
@@ -107,6 +110,11 @@ export default function Home() {
         <p className="mt-6 text-sm text-zinc-500">
           Built for India&apos;s home-based sellers — starting with one-gram
           gold jewelry.
+        </p>
+        <p className="mt-2 text-sm">
+          <a href="/invoice" className="font-medium text-emerald-600 underline hover:text-emerald-700">
+            Vendor? Try the free invoice maker →
+          </a>
         </p>
       </section>
 
