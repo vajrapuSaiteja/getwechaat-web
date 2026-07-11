@@ -3,6 +3,15 @@
 All notable changes to the showcase website, in plain language.
 Versions follow v MAJOR.MINOR.PATCH — we stay on v0.x until the first real seller is live.
 
+## v0.4.0 — 2026-07-10 · The app speaks your language
+
+- Language picker on the login page: English, తెలుగు (Telugu), தமிழ் (Tamil), हिन्दी (Hindi)
+- Choice is saved to the vendor's profile — every screen (login, setup, invoice
+  maker, dashboard) switches to their language
+- Adding more languages later (Kannada, Malayalam, Marathi...) is a single
+  dictionary file each — no redesign needed
+- Note: Telugu/Tamil/Hindi wording should get a native-speaker review before v1.0
+
 ## v0.3.0 — 2026-07-10 · Vendor accounts + real database
 
 - Vendor sign-up and login at /login (email + password, free)

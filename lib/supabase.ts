@@ -17,4 +17,5 @@ export type Seller = {
   phone: string;
   email: string | null;
   upi_id: string | null;
+  preferred_language: string | null;
 };

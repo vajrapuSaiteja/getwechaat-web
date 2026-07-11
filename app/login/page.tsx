@@ -3,11 +3,19 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import {
+  getStrings,
+  getStoredLang,
+  storeLang,
+  langNames,
+  type Lang,
+} from "@/lib/i18n";
 
 type Step = "auth" | "profile";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [lang, setLang] = useState<Lang>("en");
   const [step, setStep] = useState<Step>("auth");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [busy, setBusy] = useState(false);
@@ -16,17 +24,20 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Profile fields
   const [businessName, setBusinessName] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [phone, setPhone] = useState("");
   const [upiId, setUpiId] = useState("");
 
+  const t = getStrings(lang);
+
+  const pickLang = (l: Lang) => {
+    setLang(l);
+    storeLang(l);
+  };
+
   const goAfterAuth = async () => {
-    const { data } = await supabase
-      .from("sellers")
-      .select("id")
-      .maybeSingle();
+    const { data } = await supabase.from("sellers").select("id").maybeSingle();
     if (data) {
       router.push("/dashboard");
     } else {
@@ -35,6 +46,7 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
+    setLang(getStoredLang());
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) goAfterAuth();
     });
@@ -68,6 +80,7 @@ export default function LoginPage() {
       phone: phone.trim(),
       email,
       upi_id: upiId.trim() || null,
+      preferred_language: lang,
     });
     setBusy(false);
     if (err) {
@@ -77,51 +90,68 @@ export default function LoginPage() {
     router.push("/dashboard");
   };
 
+  const LangPicker = (
+    <div className="mb-6 flex gap-2">
+      {(Object.keys(langNames) as Lang[]).map((l) => (
+        <button
+          key={l}
+          onClick={() => pickLang(l)}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium ${
+            lang === l
+              ? "bg-emerald-600 text-white"
+              : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+          }`}
+        >
+          {langNames[l]}
+        </button>
+      ))}
+    </div>
+  );
+
   if (step === "profile") {
     return (
       <main className="mx-auto min-h-screen max-w-md bg-white px-6 py-10 text-zinc-900">
+        {LangPicker}
         <h1 className="text-2xl font-bold">
-          Set up your <span className="text-emerald-600">business</span>
+          <span className="text-emerald-600">{t.setupTitle}</span>
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Shown on every invoice you create. You only do this once.
-        </p>
+        <p className="mt-1 text-sm text-zinc-500">{t.setupSub}</p>
         <div className="mt-6 space-y-3">
           <input
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
-            placeholder="Business name (e.g. Sri Lakshmi Jewels)"
+            placeholder={t.bizName}
             className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
           />
           <input
             value={ownerName}
             onChange={(e) => setOwnerName(e.target.value)}
-            placeholder="Your name"
+            placeholder={t.yourName}
             className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
           />
           <input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            placeholder="Business WhatsApp number"
+            placeholder={t.waNumber}
             inputMode="tel"
             className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
           />
           <input
             value={upiId}
             onChange={(e) => setUpiId(e.target.value)}
-            placeholder="UPI ID for payments (e.g. name@okhdfcbank)"
+            placeholder={t.upiId}
             className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
           />
-          <p className="text-xs text-zinc-400">
-            Your UPI ID becomes a scan-to-pay QR code on every invoice.
-          </p>
+          <p className="text-xs text-zinc-400">{t.upiHint}</p>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button
             onClick={submitProfile}
-            disabled={busy || !businessName.trim() || !ownerName.trim() || !phone.trim()}
+            disabled={
+              busy || !businessName.trim() || !ownerName.trim() || !phone.trim()
+            }
             className="w-full rounded-full bg-emerald-600 py-3 font-semibold text-white hover:bg-emerald-700 disabled:bg-zinc-300"
           >
-            {busy ? "Saving..." : "Finish setup"}
+            {busy ? t.saving : t.finishSetup}
           </button>
         </div>
       </main>
@@ -130,13 +160,12 @@ export default function LoginPage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-md bg-white px-6 py-10 text-zinc-900">
+      {LangPicker}
       <h1 className="text-2xl font-bold">
-        GetWe<span className="text-emerald-600">Chaat</span> for vendors
+        GetWe<span className="text-emerald-600">Chaat</span> {t.forVendors}
       </h1>
       <p className="mt-1 text-sm text-zinc-500">
-        {mode === "signin"
-          ? "Welcome back. Sign in to your dashboard."
-          : "Create your free vendor account."}
+        {mode === "signin" ? t.welcomeBack : t.createFree}
       </p>
 
       <div className="mt-6 flex rounded-full bg-zinc-100 p-1 text-sm font-medium">
@@ -144,13 +173,13 @@ export default function LoginPage() {
           onClick={() => setMode("signin")}
           className={`flex-1 rounded-full py-2 ${mode === "signin" ? "bg-white shadow" : "text-zinc-500"}`}
         >
-          Sign in
+          {t.signIn}
         </button>
         <button
           onClick={() => setMode("signup")}
           className={`flex-1 rounded-full py-2 ${mode === "signup" ? "bg-white shadow" : "text-zinc-500"}`}
         >
-          New account
+          {t.newAccount}
         </button>
       </div>
 
@@ -158,14 +187,14 @@ export default function LoginPage() {
         <input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
+          placeholder={t.email}
           type="email"
           className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
         />
         <input
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password (min 6 characters)"
+          placeholder={t.password}
           type="password"
           className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
         />
@@ -175,11 +204,7 @@ export default function LoginPage() {
           disabled={busy || !email || password.length < 6}
           className="w-full rounded-full bg-emerald-600 py-3 font-semibold text-white hover:bg-emerald-700 disabled:bg-zinc-300"
         >
-          {busy
-            ? "Please wait..."
-            : mode === "signin"
-              ? "Sign in"
-              : "Create account"}
+          {busy ? t.pleaseWait : mode === "signin" ? t.signIn : t.createAccount}
         </button>
       </div>
     </main>

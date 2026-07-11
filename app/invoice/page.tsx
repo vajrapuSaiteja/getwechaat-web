@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 import { supabase, type Seller } from "@/lib/supabase";
+import { getStrings } from "@/lib/i18n";
 
 type Item = { name: string; qty: number; price: number };
 const emptyItem: Item = { name: "", qty: 1, price: 0 };
@@ -26,6 +27,8 @@ export default function InvoicePage() {
   const [invoiceNo, setInvoiceNo] = useState<string | null>(null);
   const [invoiceDate, setInvoiceDate] = useState("");
   const [isPaid, setIsPaid] = useState(false);
+
+  const t = getStrings(seller?.preferred_language);
 
   useEffect(() => {
     (async () => {
@@ -132,7 +135,7 @@ export default function InvoicePage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-white text-zinc-400">
-        Loading...
+        {t.loading}
       </main>
     );
   }
@@ -144,7 +147,7 @@ export default function InvoicePage() {
         <div className="relative rounded-2xl border border-zinc-200 p-6">
           {isPaid && (
             <div className="absolute right-4 top-4 rotate-12 rounded border-4 border-emerald-600 px-3 py-1 text-xl font-black tracking-widest text-emerald-600">
-              PAID
+              {t.paidStamp}
             </div>
           )}
           <div className="flex items-start justify-between">
@@ -159,7 +162,7 @@ export default function InvoicePage() {
           </div>
 
           <div className="mt-6 rounded-lg bg-zinc-50 p-3 text-sm">
-            <span className="text-zinc-500">Billed to: </span>
+            <span className="text-zinc-500">{t.billedTo} </span>
             <span className="font-medium">{customerName}</span>
             <span className="text-zinc-500"> · {customerPhone}</span>
             {customerAddress && (
@@ -170,10 +173,10 @@ export default function InvoicePage() {
           <table className="mt-6 w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-zinc-500">
-                <th className="pb-2 font-medium">Item</th>
-                <th className="pb-2 text-center font-medium">Qty</th>
-                <th className="pb-2 text-right font-medium">Price</th>
-                <th className="pb-2 text-right font-medium">Amount</th>
+                <th className="pb-2 font-medium">{t.colItem}</th>
+                <th className="pb-2 text-center font-medium">{t.colQty}</th>
+                <th className="pb-2 text-right font-medium">{t.colPrice}</th>
+                <th className="pb-2 text-right font-medium">{t.colAmount}</th>
               </tr>
             </thead>
             <tbody>
@@ -196,14 +199,14 @@ export default function InvoicePage() {
                 <div className="rounded-lg border border-zinc-200 bg-white p-2">
                   <QRCode value={upiLink()} size={110} />
                 </div>
-                <p className="mt-1 text-xs text-zinc-500">Scan to pay via UPI</p>
+                <p className="mt-1 text-xs text-zinc-500">{t.scanToPay}</p>
                 <p className="text-xs text-zinc-400">{seller.upi_id}</p>
               </div>
             ) : (
               <div />
             )}
             <div className="text-right">
-              <p className="text-sm text-zinc-500">Total</p>
+              <p className="text-sm text-zinc-500">{t.total}</p>
               <p className="text-2xl font-bold">{inr(total)}</p>
             </div>
           </div>
@@ -220,7 +223,7 @@ export default function InvoicePage() {
             rel="noopener noreferrer"
             className="block w-full rounded-full bg-emerald-600 py-3 text-center font-semibold text-white hover:bg-emerald-700"
           >
-            Send on WhatsApp
+            {t.sendWA}
           </a>
           {!isPaid && (
             <button
@@ -228,21 +231,21 @@ export default function InvoicePage() {
               disabled={busy}
               className="block w-full rounded-full border-2 border-emerald-600 py-3 text-center font-semibold text-emerald-700 hover:bg-emerald-50"
             >
-              {busy ? "..." : "Mark as PAID"}
+              {busy ? "..." : t.markPaid}
             </button>
           )}
           <button
             onClick={() => window.print()}
             className="block w-full rounded-full border border-zinc-300 py-3 text-center font-semibold text-zinc-700 hover:bg-zinc-50"
           >
-            Download PDF / Print
+            {t.downloadPdf}
           </button>
           <div className="flex justify-between text-sm text-zinc-500">
             <button onClick={reset} className="py-2 hover:text-zinc-700">
-              + New invoice
+              {t.plusNewInvoice}
             </button>
             <a href="/dashboard" className="py-2 hover:text-zinc-700">
-              Dashboard →
+              {t.dashboard} →
             </a>
           </div>
         </div>
@@ -255,45 +258,45 @@ export default function InvoicePage() {
     <main className="mx-auto min-h-screen max-w-lg bg-white px-5 py-8 text-zinc-900">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">
-          New <span className="text-emerald-600">Invoice</span>
+          <span className="text-emerald-600">{t.newInvoice}</span>
         </h1>
         <a href="/dashboard" className="text-sm text-zinc-500 hover:text-zinc-700">
-          Dashboard →
+          {t.dashboard} →
         </a>
       </div>
       <p className="mt-1 text-sm text-zinc-500">{seller?.business_name}</p>
 
       <section className="mt-6">
-        <h2 className="text-sm font-semibold text-zinc-500">CUSTOMER</h2>
+        <h2 className="text-sm font-semibold text-zinc-500">{t.customer}</h2>
         <input
           value={customerName}
           onChange={(e) => setCustomerName(e.target.value)}
-          placeholder="Customer name"
+          placeholder={t.custName}
           className="mt-2 w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
         />
         <input
           value={customerPhone}
           onChange={(e) => setCustomerPhone(e.target.value)}
-          placeholder="Customer WhatsApp number"
+          placeholder={t.custPhone}
           inputMode="tel"
           className="mt-2 w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
         />
         <input
           value={customerAddress}
           onChange={(e) => setCustomerAddress(e.target.value)}
-          placeholder="Delivery address (optional)"
+          placeholder={t.custAddress}
           className="mt-2 w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none"
         />
       </section>
 
       <section className="mt-6">
-        <h2 className="text-sm font-semibold text-zinc-500">ITEMS</h2>
+        <h2 className="text-sm font-semibold text-zinc-500">{t.items}</h2>
         {items.map((it, i) => (
           <div key={i} className="mt-2 rounded-xl border border-zinc-200 p-3">
             <input
               value={it.name}
               onChange={(e) => setItem(i, { name: e.target.value })}
-              placeholder={`Item ${i + 1} (e.g. 1gm Gold Floral Stud)`}
+              placeholder={`${t.itemPh} ${i + 1}`}
               className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
             />
             <div className="mt-2 flex gap-2">
@@ -302,7 +305,7 @@ export default function InvoicePage() {
                 min={1}
                 value={it.qty || ""}
                 onChange={(e) => setItem(i, { qty: Number(e.target.value) })}
-                placeholder="Qty"
+                placeholder={t.qty}
                 className="w-20 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
               />
               <input
@@ -310,7 +313,7 @@ export default function InvoicePage() {
                 min={0}
                 value={it.price || ""}
                 onChange={(e) => setItem(i, { price: Number(e.target.value) })}
-                placeholder="Price ₹"
+                placeholder={t.pricePh}
                 className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
               />
               {items.length > 1 && (
@@ -331,12 +334,12 @@ export default function InvoicePage() {
           onClick={() => setItems((prev) => [...prev, { ...emptyItem }])}
           className="mt-2 text-sm font-medium text-emerald-600 hover:text-emerald-700"
         >
-          + Add another item
+          {t.addItem}
         </button>
       </section>
 
       <div className="mt-6 flex items-center justify-between rounded-xl bg-zinc-50 px-4 py-3">
-        <span className="text-sm text-zinc-500">Total</span>
+        <span className="text-sm text-zinc-500">{t.total}</span>
         <span className="text-xl font-bold">{inr(total)}</span>
       </div>
 
@@ -347,11 +350,9 @@ export default function InvoicePage() {
         disabled={!valid || busy}
         className="mt-6 w-full rounded-full bg-emerald-600 py-3 font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
       >
-        {busy ? "Generating..." : "Generate invoice"}
+        {busy ? t.generating : t.generate}
       </button>
-      <p className="mt-3 text-center text-xs text-zinc-400">
-        Saved to your account · numbered automatically
-      </p>
+      <p className="mt-3 text-center text-xs text-zinc-400">{t.savedNote}</p>
     </main>
   );
 }
