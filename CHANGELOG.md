@@ -3,6 +3,19 @@
 All notable changes to the showcase website, in plain language.
 Versions follow v MAJOR.MINOR.PATCH — we stay on v0.x until the first real seller is live.
 
+## v0.5.0 — 2026-07-10 · The WhatsApp bot (code complete)
+
+- WhatsApp bot webhook built into the website (/api/whatsapp) — no extra hosting
+- The Sindhu flow in chat: send *1* → bot asks customer name, number, address,
+  items → confirm → invoice created with a shareable link
+- Bot speaks the vendor's saved language (English/Telugu/Tamil/Hindi)
+- *paid INV-2026-0001* in chat stamps the invoice PAID
+- Public invoice page (/inv/...) — customers open the link, see the invoice,
+  scan the UPI QR or tap "Pay via UPI", no login needed
+- Vendor is recognized automatically by their WhatsApp number
+- Still needed to go live: Meta developer account, bot test number, and three
+  secrets pasted into Vercel (guide in chat)
+
 ## v0.4.0 — 2026-07-10 · The app speaks your language
 
 - Language picker on the login page: English, తెలుగు (Telugu), தமிழ் (Tamil), हिन्दी (Hindi)
