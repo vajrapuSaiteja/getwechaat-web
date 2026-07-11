@@ -87,6 +87,18 @@ export default function LoginPage() {
       setError(err.message);
       return;
     }
+    // Bot introduces itself on the vendor's WhatsApp — vendor just replies,
+    // no need to save our number. Fire-and-forget: signup succeeds either way.
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const accessToken = sess.session?.access_token;
+      if (accessToken) {
+        fetch("/api/welcome", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }).catch(() => {});
+      }
+    } catch {}
     router.push("/dashboard");
   };
 

@@ -3,6 +3,15 @@
 All notable changes to the showcase website, in plain language.
 Versions follow v MAJOR.MINOR.PATCH — we stay on v0.x until the first real seller is live.
 
+## v0.5.1 — 2026-07-11 · Bot says hello first
+
+- Bot is now LIVE on a Meta test number, webhook verified and receiving messages
+- New vendors get a WhatsApp message from the bot right after signup —
+  no need to save our number, just reply and start chatting
+- (WhatsApp rule: the first business-initiated message must be an approved
+  template; using the built-in hello_world until our own welcome template
+  is approved with a real number)
+
 ## v0.5.0 — 2026-07-10 · The WhatsApp bot (code complete)
 
 - WhatsApp bot webhook built into the website (/api/whatsapp) — no extra hosting
